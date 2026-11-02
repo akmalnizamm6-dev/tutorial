@@ -153,7 +153,6 @@ def main(POP_SIZE, MUT_RATE, CO_R, TARGET, GENES):
   programs = df_ratings["Type of Program"].tolist()
 
   for idx, hour in enumerate(hours):
-    # Select program based on evolutionary optimization result mapping
     selected_program = programs[idx % len(programs)]
     schedule_results.append({
         "Time Slot": hour,
@@ -168,9 +167,9 @@ def main(POP_SIZE, MUT_RATE, CO_R, TARGET, GENES):
 
 # --- UI FORM INPUTS ---
 with st.form("parameters_form"):
-  TARGET = st.text_input("Enter Target String (e.g., fakhitah)", value="fakhitah")
+  # Ditukar kepada nama 'akmal' di sini
+  TARGET = st.text_input("Enter Target String (e.g., akmal)", value="akmal")
 
-  # Parameter constraints mapping from assignment requirements[cite: 1]
   CO_R = st.slider(
       "Crossover Rate (CO_R)", min_value=0.0, max_value=0.95, value=0.8, step=0.01
   )
