@@ -79,112 +79,113 @@ def replace(new_gen, population):
   return population
 
 
+# --- UI INPUT CONTROLS (USING SLIDERS) ---
+st.sidebar.header("Algorithm Parameters")
+TARGET = st.sidebar.text_input("Enter Target String", value="akmal")
+
+# Interactive Sliders for Crossover Rate and Mutation Rate
+CO_R = st.sidebar.slider(
+    "Crossover Rate (CO_R)", min_value=0.0, max_value=0.95, value=0.8, step=0.01
+)
+MUT_RATE = st.sidebar.slider(
+    "Mutation Rate (MUT_R)",
+    min_value=0.01,
+    max_value=0.05,
+    value=0.02,
+    step=0.001,
+)
+
+run_button = st.sidebar.button("Run Algorithm & Generate Schedule")
+
 # --- 7. MAIN ALGORITHM & SCHEDULE GENERATOR ---
-def main(POP_SIZE, MUT_RATE, CO_R, TARGET, GENES):
-  # Load the program ratings CSV file
-  try:
-    df_ratings = pd.read_csv("program_ratings.csv")
-  except FileNotFoundError:
-    st.error(
-        "Error: 'program_ratings.csv' file not found. Please upload it to your"
-        " directory."
+if run_button:
+  if not TARGET:
+    st.warning("Please enter a target string.")
+  else:
+    # Load the program ratings CSV file
+    try:
+      df_ratings = pd.read_csv("program_ratings.csv")
+    except FileNotFoundError:
+      st.error(
+          "Error: 'program_ratings.csv' file not found. Please upload it to"
+          " your directory."
+      )
+      st.stop()
+
+    st.subheader("Loaded Program Ratings Data (CSV)")
+    st.dataframe(df_ratings)
+
+    # 1) Initialize population
+    initial_population = initialize_pop(TARGET)
+    found = False
+    population = []
+    generation = 1
+
+    # 2) Calculate fitness for current population
+    for _ in range(len(initial_population)):
+      population.append(fitness_cal(TARGET, initial_population[_]))
+
+    # 3) Loop until TARGET is found
+    st.subheader("Genetic Algorithm Optimization Progress")
+    progress_placeholder = st.empty()
+
+    while not found and generation <= 50:
+      # 3.1) Select best individuals
+      selected = selection(population, TARGET)
+
+      # 3.2) Crossover using CO_R parameter logic
+      population = sorted(population, key=lambda x: x[1])
+      crossovered = crossover(selected, len(TARGET), population)
+
+      # 3.3) Mutate children using MUT_RATE parameter
+      mutated = mutate(crossovered, MUT_RATE)
+
+      new_gen = []
+      for _ in mutated:
+        new_gen.append(fitness_cal(TARGET, _))
+
+      # 3.4) Replacement
+      population = replace(new_gen, population)
+
+      best_str = "".join(population[0][0])
+      best_fit = population[0][1]
+
+      progress_placeholder.text(
+          f"Generation: {generation} | Best String: {best_str} | Fitness:"
+          f" {best_fit}"
+      )
+
+      if best_fit == 0:
+        st.success(f"Target found at Generation {generation}!")
+        break
+      generation += 1
+
+    # --- 8. DISPLAY FINAL SCHEDULE RESULT TABLE ---
+    st.markdown("---")
+    st.subheader("Resulting Optimized Schedule Table")
+    st.write(
+        "Based on the genetic algorithm execution with Crossover Rate "
+        f"(`CO_R` = {CO_R}) and Mutation Rate (`MUT_R` = {MUT_RATE}):"
     )
-    return
 
-  st.subheader("Loaded Program Ratings Data (CSV)")
-  st.dataframe(df_ratings)
+    # Mapping output format to schedule format matching CSV structure
+    schedule_results = []
+    hours = [f"Hour {h}" for h in range(6, 24)]
+    programs = df_ratings["Type of Program"].tolist()
 
-  # 1) Initialize population
-  initial_population = initialize_pop(TARGET)
-  found = False
-  population = []
-  generation = 1
+    for idx, hour in enumerate(hours):
+      selected_program = programs[idx % len(programs)]
+      schedule_results.append({
+          "Time Slot": hour,
+          "Scheduled Program": selected_program,
+          "Assigned CO_R": CO_R,
+          "Assigned MUT_R": MUT_RATE,
+      })
 
-  # 2) Calculate fitness for current population
-  for _ in range(len(initial_population)):
-    population.append(fitness_cal(TARGET, initial_population[_]))
-
-  # 3) Loop until TARGET is found
-  st.subheader("Genetic Algorithm Optimization Progress")
-  progress_placeholder = st.empty()
-
-  while not found and generation <= 50:
-    # 3.1) Select best individuals
-    selected = selection(population, TARGET)
-
-    # 3.2) Crossover using CO_R parameter logic
-    population = sorted(population, key=lambda x: x[1])
-    crossovered = crossover(selected, len(TARGET), population)
-
-    # 3.3) Mutate children using MUT_RATE parameter
-    mutated = mutate(crossovered, MUT_RATE)
-
-    new_gen = []
-    for _ in mutated:
-      new_gen.append(fitness_cal(TARGET, _))
-
-    # 3.4) Replacement
-    population = replace(new_gen, population)
-
-    best_str = "".join(population[0][0])
-    best_fit = population[0][1]
-
-    progress_placeholder.text(
-        f"Generation: {generation} | Best String: {best_str} | Fitness:"
-        f" {best_fit}"
-    )
-
-    if best_fit == 0:
-      st.success(f"Target found at Generation {generation}!")
-      break
-    generation += 1
-
-  # --- 8. DISPLAY FINAL SCHEDULE RESULT TABLE ---
-  st.markdown("---")
-  st.subheader("Resulting Optimized Schedule Table")
-  st.write(
-      "Based on the genetic algorithm execution with Crossover Rate "
-      f"(`CO_R` = {CO_R}) and Mutation Rate (`MUT_R` = {MUT_RATE}):"
+    df_schedule = pd.DataFrame(schedule_results)
+    st.dataframe(df_schedule)
+else:
+  st.info(
+      "👈 Adjust your parameters in the sidebar and click 'Run Algorithm &"
+      " Generate Schedule' to start."
   )
-
-  # Mapping the output format to a schedule format matching CSV structure
-  schedule_results = []
-  hours = [f"Hour {h}" for h in range(6, 24)]
-  programs = df_ratings["Type of Program"].tolist()
-
-  for idx, hour in enumerate(hours):
-    selected_program = programs[idx % len(programs)]
-    schedule_results.append({
-        "Time Slot": hour,
-        "Scheduled Program": selected_program,
-        "Assigned CO_R": CO_R,
-        "Assigned MUT_R": MUT_R,
-    })
-
-  df_schedule = pd.DataFrame(schedule_results)
-  st.dataframe(df_schedule)
-
-
-# --- UI FORM INPUTS ---
-with st.form("parameters_form"):
-  # Ditukar kepada nama 'akmal' di sini
-  TARGET = st.text_input("Enter Target String (e.g., akmal)", value="akmal")
-
-  CO_R = st.slider(
-      "Crossover Rate (CO_R)", min_value=0.0, max_value=0.95, value=0.8, step=0.01
-  )
-  MUT_RATE = st.slider(
-      "Mutation Rate (MUT_R)",
-      min_value=0.01,
-      max_value=0.05,
-      value=0.02,
-      step=0.001,
-  )
-
-  calculate = st.form_submit_button("Run Algorithm & Generate Schedule")
-
-  if calculate:
-    if not TARGET:
-      st.warning("Please enter a target string.")
-    else:
-      main(POP_SIZE, MUT_RATE, CO_R, TARGET, GENES)
